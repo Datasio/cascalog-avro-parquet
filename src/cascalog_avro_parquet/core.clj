@@ -2,8 +2,7 @@
   (:gen-class)
   (:use cascalog.api)
   (:require [abracad (avro :as avro)])
-  (:import [cascading.avro HMAvroParquetScheme]
-           cascading.tap.hadoop.Hfs))
+  (:import [cascading.avro HMAvroParquetScheme]))
 
 (def complex-schema (avro/parse-schema
                      {:name "Complex"
@@ -35,43 +34,27 @@
                                {:name "union"
                                 :type [:int :string]}]}))
 
-(defn complex-record []
+(def complex-record
   [{:enum :SPADES :array ["blue" "red" "green"] :map {:a 1 :b 2 :c 3} :fixed (byte-array 16) :union "string"}])
 
 
-(def schema (avro/parse-schema
-             {:name "Node2"
+(def simpsons-schema (avro/parse-schema
+             {:name "Simpson-Characters"
               :type :record
-              :fields [{:name "c"
-                        :type :int}
-                       {:name "d"
-                        :type :int}]}
-             {:name "Node"
-              :type :record
-              :fields [
-                       {:name "a"
-                        :type :string}
-                       {:name "b"
-                        :type :string}
-                       {:name "z"
-                        :type "Node2"}]}))
+              :fields [{:name "firstname" :type :string}
+                       {:name "lastname" :type :string}
+                       {:name "age" :type :int}]}))
 
-(def selection (avro/parse-schema
-                {:name "Node"
+(def simpsons-firstname-projection-schema (avro/parse-schema
+                {:name "People"
                  :type :record
-                 :fields [{:name "z"
-                           :type {
-                                  :name "Node2"
-                                  :type :record
-                                  :fields [{:name "c" :type :int }]}}]}))
+                 :fields [{:name "firstname" :type :string}]}))
 
-(defn records []
-  [{:a "foo"
-    :b "123"
-    :z {:c 1 :d 2}}
-   {:a "bar"
-    :b "345"
-    :z {:c 3 :d 4}}])
+(def simpsons-records [{:firstname "Bart" :lastname "Simpson" :age 10}
+             {:firstname "Homer" :lastname "Simpson" :age 45}
+             {:firstname "Marge" :lastname "Simpson" :age 45}
+             {:firstname "Lisa" :lastname "Simpson" :age 8}
+             {:firstname "Maggie" :lastname "Simpson" :age 1}])
 
 (defn delete-recursively [fname]
   (try
@@ -83,33 +66,27 @@
       (func func (clojure.java.io/file fname)))
     (catch Exception e#)))
 
-(defn sink-parquet-clj "Create a cascading sink for parquet that takes PersistentArrayMap for input"
-  [output schema]
+(defn io-parquet
+  [dir schema]
   (let [ps (HMAvroParquetScheme. schema)]
-    (Hfs. ps output)))
-
-(defn tap-parquet-clj "Creates a cascading parquet tap that outputs PersistentArrayMap"
-  [input selection]
-  (let [ps (HMAvroParquetScheme. selection)]
-    (Hfs. ps input)))
+    (lfs-tap ps dir :sinkmode :replace)))
 
 (defn writer "Function that writes records to parquet"
   [output schema generator]
   (delete-recursively output)
-  (?<- (sink-parquet-clj output schema)
-       [?record]
-       ((generator) :> ?record)))
+  (?<- (io-parquet output schema)
+       [?datum]
+       (generator :> ?datum)))
 
 (defn reader "Function that reads data from parquet"
-  [input selection]
-  (<- [?output]
-      ((tap-parquet-clj input selection) :> ?output)
-     ))
+  [src schema]
+  (<- [?datum]
+      ((io-parquet src schema) :> ?datum)))
 
 (defn -main "This will write the parquet data and then read it to stdout"
   []
-  (writer "parquet" schema records)
-  (?- (stdout) (reader "parquet" schema))
+  (writer "parquet" simpsons-schema simpsons-records)
+  (?- (stdout) (reader "parquet" simpsons-schema))
   (delete-recursively "parquet"))
 
 

@@ -3,6 +3,11 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+;;   :jvm-opts ["-server" "-Xms128M" "-Xmx256M"
+;;               ;; Use these options in development to allow debugging
+;;               ;; with jswat on localhost port 9900
+;;               "-Xdebug"
+;;               "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=9900"]
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [com.damballa/abracad "0.4.9"]
                  [org.apache.avro/avro "1.7.6"]

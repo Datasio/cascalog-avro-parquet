@@ -43,21 +43,29 @@
 
 ;;testing column selection
   (fact "test-projection-schema"
-       (writer "parquet" schema records)
-       (reader "parquet" selection)
+       (writer "parquet" simpsons-schema simpsons-records)
+       (reader "parquet" simpsons-firstname-projection-schema)
    =>
        (produces
-        [[{:z {:c 1}}]
-         [{:z {:c 3}}]])
+        [ [{:firstname "Bart"}]
+          [{:firstname "Homer"}]
+          [{:firstname "Marge"}]
+          [{:firstname "Lisa"}]
+          [{:firstname "Maggie"}]])
       (delete-recursively "parquet"))
 
+  ;;testing full schema
   (fact "test-full-schema"
-       (writer "parquet" schema records)
-       (reader "parquet" schema)
+       (writer "parquet" simpsons-schema simpsons-records)
+       (reader "parquet" simpsons-schema)
    =>
        (produces
-        [[{:z {:c 1, :d 2}, :b "123", :a "foo"}]
-         [{:z {:c 3, :d 4}, :b "345", :a "bar"}]])
+        [ [{:lastname "Simpson" :firstname "Bart"  :age 10}]
+          [{:lastname "Simpson" :firstname "Homer" :age 45}]
+          [{:lastname "Simpson" :firstname "Marge" :age 45}]
+          [{:lastname "Simpson" :firstname "Lisa"  :age 8}]
+          [{:lastname "Simpson" :firstname "Maggie" :age 1}]
+          ])
       (delete-recursively "parquet"))
 
 
@@ -93,7 +101,7 @@
 (defn test-template
   "Generic function to generate a test"
   [folder datum schema checker-function]
-    (let [generator (fn [] [datum])]
+    (let [generator [datum]]
       (writer folder schema generator)
       (fact
         (reader folder schema) => (checker-function)
